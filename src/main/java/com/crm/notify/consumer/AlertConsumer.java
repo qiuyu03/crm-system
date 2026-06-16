@@ -4,7 +4,7 @@ import com.crm.customer.service.CustomerService;
 import com.crm.notify.config.RabbitMQConfig;
 import com.crm.notify.dto.AlertMessage;
 import com.crm.notify.entity.Alert;
-import com.crm.notify.repository.AlertRepository;
+import com.crm.notify.mapper.AlertMapper;
 import com.crm.notify.service.FeishuNotifyService;
 import com.crm.notify.service.WebSocketNotifyService;
 import com.rabbitmq.client.Channel;
@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class AlertConsumer {
 
-    private final AlertRepository alertRepository;
+    private final AlertMapper alertMapper;
     private final FeishuNotifyService feishuNotifyService;
     private final WebSocketNotifyService webSocketNotifyService;
     private final CustomerService customerService;
@@ -41,35 +41,31 @@ public class AlertConsumer {
     }
 
     /**
-     * 预警处理流程：存库 → 飞书推送 → WebSocket广播 → 手动ACK
-     * 手动ACK：确保消息处理完成后才从队列移除，避免处理中宕机导致消息丢失。
+     * 预警处理：存库 → 飞书推送 → WebSocket 广播 → 手动 ACK
+     * 手动 ACK 确保处理完成后才从队列移除，避免宕机丢消息。
      */
     private void processAlert(AlertMessage msg, Channel channel, long deliveryTag) throws IOException {
         try {
-            // 1. 持久化预警记录
             Alert alert = new Alert();
             alert.setOrderId(msg.getOrderId());
             alert.setAlertType(msg.getAlertType());
             alert.setMessage(msg.getMessage());
-            alertRepository.save(alert);
+            alert.setStatus("未处理");
+            alertMapper.insert(alert);
 
-            // 2. 飞书推送
             feishuNotifyService.sendAlert(msg.getOrderNo(), msg.getAlertType(), msg.getMessage());
             alert.setNotifiedAt(LocalDateTime.now());
-            alertRepository.save(alert);
+            alertMapper.updateById(alert);
 
-            // 3. WebSocket 广播（前端实时刷新预警列表）
             webSocketNotifyService.pushAlert(
                 msg.getOrderId(), msg.getOrderNo(), msg.getAlertType(), msg.getMessage()
             );
 
-            // 手动 ACK：确认消息已处理
             channel.basicAck(deliveryTag, false);
             log.info("预警处理完成: 订单[{}] 类型[{}]", msg.getOrderNo(), msg.getAlertType());
 
         } catch (Exception e) {
-            log.error("预警处理失败，消息将重新入队: {}", e.getMessage(), e);
-            // requeue=true：消息重新入队，等待下次消费
+            log.error("预警处理失败，消息重新入队: {}", e.getMessage(), e);
             channel.basicNack(deliveryTag, false, true);
         }
     }
