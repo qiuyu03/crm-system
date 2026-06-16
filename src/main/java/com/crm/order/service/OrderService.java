@@ -1,5 +1,7 @@
 package com.crm.order.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.crm.common.exception.BusinessException;
 import com.crm.notify.config.RabbitMQConfig;
 import com.crm.notify.consumer.OrderCompletedMessage;
@@ -9,13 +11,11 @@ import com.crm.order.dto.OrderCreateDTO;
 import com.crm.order.dto.OrderDetailDTO;
 import com.crm.order.entity.Order;
 import com.crm.order.entity.OrderItem;
-import com.crm.order.repository.OrderItemRepository;
-import com.crm.order.repository.OrderRepository;
+import com.crm.order.mapper.OrderItemMapper;
+import com.crm.order.mapper.OrderMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,36 +23,40 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
 
-    private final OrderRepository orderRepository;
-    private final OrderItemRepository orderItemRepository;
+    private final OrderMapper orderMapper;
+    private final OrderItemMapper orderItemMapper;
     private final RabbitTemplate rabbitTemplate;
     private final WebSocketNotifyService webSocketNotifyService;
 
-    // 合法的状态流转路径
-    private static final java.util.Map<String, List<String>> VALID_TRANSITIONS = java.util.Map.of(
+    private static final Map<String, List<String>> VALID_TRANSITIONS = Map.of(
         "待确认", List.of("生产中", "已取消"),
         "生产中", List.of("已发货"),
         "已发货", List.of("已完成")
     );
 
-    public Page<Order> list(String status, Pageable pageable) {
-        if (status != null && !status.isBlank()) {
-            return orderRepository.findByStatus(status, pageable);
-        }
-        return orderRepository.findAll(pageable);
+    /**
+     * 分页查询订单，支持按状态过滤
+     */
+    public Page<Order> list(String status, Page<Order> page) {
+        LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<Order>()
+            .eq(status != null && !status.isBlank(), Order::getStatus, status)
+            .orderByDesc(Order::getCreateTime);
+        return orderMapper.selectPage(page, wrapper);
     }
 
     public OrderDetailDTO getDetail(Long id) {
         Order order = findById(id);
-        List<OrderItem> items = orderItemRepository.findByOrderId(id);
+        List<OrderItem> items = orderItemMapper.selectList(
+            new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, id)
+        );
         return OrderDetailDTO.from(order, items);
     }
 
@@ -62,13 +66,14 @@ public class OrderService {
         order.setOrderNo(generateOrderNo());
         order.setCustomerId(dto.getCustomerId());
         order.setDeliveryDate(dto.getDeliveryDate());
-        order.setCurrency(dto.getCurrency());
+        order.setCurrency(dto.getCurrency() != null ? dto.getCurrency() : "CNY");
         order.setCreatedBy(dto.getCreatedBy());
         order.setRemark(dto.getRemark());
+        order.setStatus("待确认");
+        order.setTotalAmount(BigDecimal.ZERO);
+        orderMapper.insert(order);
 
-        // 计算总金额，同时创建明细
         BigDecimal total = BigDecimal.ZERO;
-        order = orderRepository.save(order);
         for (OrderCreateDTO.ItemDTO itemDto : dto.getItems()) {
             OrderItem item = new OrderItem();
             item.setOrderId(order.getId());
@@ -81,19 +86,17 @@ public class OrderService {
             BigDecimal amount = itemDto.getUnitPrice().multiply(BigDecimal.valueOf(itemDto.getQty()));
             item.setAmount(amount);
             total = total.add(amount);
-            orderItemRepository.save(item);
+            orderItemMapper.insert(item);
         }
 
+        // 回填总金额
         order.setTotalAmount(total);
-        return orderRepository.save(order);
+        orderMapper.updateById(order);
+        return order;
     }
 
     /**
-     * 订单状态变更，包含：
-     *   1. 校验状态流转合法性
-     *   2. 持久化
-     *   3. WebSocket 推送前端
-     *   4. 发 MQ 事件（完成时触发客户评分更新）
+     * 状态流转：校验合法性 → 持久化 → WebSocket 推送 → MQ 事件
      */
     @Transactional
     public Order changeStatus(Long orderId, String newStatus) {
@@ -111,12 +114,10 @@ public class OrderService {
         if ("已发货".equals(newStatus)) {
             order.setShippingDate(LocalDateTime.now());
         }
-        Order saved = orderRepository.save(order);
+        orderMapper.updateById(order);
 
-        // WebSocket 实时推送
         webSocketNotifyService.pushOrderStatusChange(orderId, newStatus);
 
-        // 订单完成：发 MQ 触发客户评分更新
         if ("已完成".equals(newStatus)) {
             OrderCompletedMessage msg = new OrderCompletedMessage();
             msg.setOrderId(orderId);
@@ -126,12 +127,9 @@ public class OrderService {
                     RabbitMQConfig.KEY_ORDER_COMPLETED, msg);
         }
 
-        return saved;
+        return order;
     }
 
-    /**
-     * 手动触发预警（测试用，实际场景由定时任务检测交期临近触发）
-     */
     public void triggerAlert(Long orderId, String alertType, String message) {
         Order order = findById(orderId);
         AlertMessage alert = new AlertMessage(
@@ -145,8 +143,9 @@ public class OrderService {
     }
 
     private Order findById(Long id) {
-        return orderRepository.findById(id)
-                .orElseThrow(() -> new BusinessException(404, "订单不存在"));
+        Order order = orderMapper.selectById(id);
+        if (order == null) throw new BusinessException(404, "订单不存在");
+        return order;
     }
 
     private String generateOrderNo() {

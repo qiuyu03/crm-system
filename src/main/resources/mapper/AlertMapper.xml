@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.crm.notify.mapper.AlertMapper">
+
+    <!--
+        按订单ID列表批量查预警，取最近20条。
+        使用 IN 一次查询避免 N+1，LIMIT 控制数据量。
+    -->
+    <select id="findTop20ByOrderIdIn" resultType="com.crm.notify.entity.Alert">
+        SELECT id, order_id, alert_type, message, status,
+               handler, handle_time, notified_at, create_time, update_time
+        FROM t_alert
+        WHERE order_id IN
+        <foreach collection="orderIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY create_time DESC
+        LIMIT 20
+    </select>
+
+</mapper>

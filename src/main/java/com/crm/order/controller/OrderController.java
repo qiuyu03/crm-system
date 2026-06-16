@@ -1,5 +1,7 @@
 package com.crm.order.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.crm.common.result.R;
 import com.crm.order.dto.OrderCreateDTO;
 import com.crm.order.dto.OrderDetailDTO;
@@ -7,9 +9,6 @@ import com.crm.order.entity.Order;
 import com.crm.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,12 +19,11 @@ public class OrderController {
     private final OrderService orderService;
 
     @GetMapping
-    public R<Page<Order>> list(
+    public R<IPage<Order>> list(
             @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createTime"));
-        return R.ok(orderService.list(status, pageable));
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "10") long size) {
+        return R.ok(orderService.list(status, new Page<>(page, size)));
     }
 
     @GetMapping("/{id}")
@@ -44,7 +42,6 @@ public class OrderController {
         return R.ok(orderService.changeStatus(id, status));
     }
 
-    // 触发预警（开发测试用）
     @PostMapping("/{id}/alert")
     public R<Void> triggerAlert(@PathVariable Long id,
                                 @RequestParam String alertType,

@@ -1,43 +1,28 @@
 package com.crm.notify.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
 @Data
-@Entity
-@Table(name = "t_alert")
+@TableName("t_alert")
 public class Alert {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(nullable = false)
     private Long orderId;
-
-    @Column(nullable = false, length = 32)
     private String alertType;
-
-    @Column(nullable = false, length = 512)
     private String message;
-
-    @Column(nullable = false, length = 16)
-    private String status = "未处理";
-
-    @Column(length = 32)
+    private String status;
     private String handler;
-
     private LocalDateTime handleTime;
-
     private LocalDateTime notifiedAt;
 
-    @CreationTimestamp
+    @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
-    @UpdateTimestamp
+    @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
 }

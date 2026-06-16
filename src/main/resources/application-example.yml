@@ -8,17 +8,8 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3306/crm_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: root
-    password: your_password_here      # 改为你的 MySQL 密码
+    password: your_password_here
     driver-class-name: com.mysql.cj.jdbc.Driver
-
-  jpa:
-    hibernate:
-      ddl-auto: none
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-        dialect: org.hibernate.dialect.MySQL8Dialect
 
   data:
     redis:
@@ -33,8 +24,8 @@ spring:
   rabbitmq:
     host: localhost
     port: 5672
-    username: admin                   # 改为你的 RabbitMQ 用户名
-    password: your_password_here      # 改为你的 RabbitMQ 密码
+    username: admin
+    password: your_password_here
     virtual-host: /
     listener:
       simple:
@@ -44,6 +35,16 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
 
+mybatis-plus:
+  mapper-locations: classpath*:mapper/**/*.xml
+  type-aliases-package: com.crm.*.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+
 management:
   endpoints:
     web:
@@ -51,4 +52,4 @@ management:
         include: health,info
 
 feishu:
-  webhook-url: https://open.feishu.cn/open-apis/bot/v2/hook/your-webhook-token  # 改为你的飞书 Webhook
+  webhook-url: https://open.feishu.cn/open-apis/bot/v2/hook/your-webhook-token

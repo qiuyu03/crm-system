@@ -1,44 +1,27 @@
 package com.crm.order.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
-import org.hibernate.annotations.CreationTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
-@Entity
-@Table(name = "t_order_item")
+@TableName("t_order_item")
 public class OrderItem {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
 
-    @Column(nullable = false)
     private Long orderId;
-
-    @Column(nullable = false, length = 128)
     private String productName;
-
-    @Column(length = 64)
     private String productCode;
-
-    @Column(nullable = false)
     private Integer qty;
-
-    @Column(nullable = false, precision = 12, scale = 2)
-    private java.math.BigDecimal unitPrice;
-
-    @Column(nullable = false, precision = 15, scale = 2)
-    private java.math.BigDecimal amount;
-
-    @Column(length = 16)
+    private BigDecimal unitPrice;
+    private BigDecimal amount;
     private String unit;
-
-    @Column(length = 256)
     private String remark;
 
-    @CreationTimestamp
+    @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 }

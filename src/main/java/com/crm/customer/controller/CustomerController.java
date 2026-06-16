@@ -1,5 +1,7 @@
 package com.crm.customer.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.crm.common.result.R;
 import com.crm.customer.dto.CustomerCreateDTO;
 import com.crm.customer.dto.CustomerProfileDTO;
@@ -7,9 +9,6 @@ import com.crm.customer.entity.Customer;
 import com.crm.customer.service.CustomerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,13 +19,12 @@ public class CustomerController {
     private final CustomerService customerService;
 
     @GetMapping
-    public R<Page<Customer>> list(
+    public R<IPage<Customer>> list(
             @RequestParam(required = false) String level,
             @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "score"));
-        return R.ok(customerService.list(level, keyword, pageable));
+            @RequestParam(defaultValue = "1") long page,
+            @RequestParam(defaultValue = "10") long size) {
+        return R.ok(customerService.list(level, keyword, new Page<>(page, size)));
     }
 
     @GetMapping("/{id}")
@@ -44,7 +42,6 @@ public class CustomerController {
         return R.ok(customerService.create(dto));
     }
 
-    // 手动触发重新评分（测试用）
     @PutMapping("/{id}/rescore")
     public R<Customer> rescore(@PathVariable Long id) {
         return R.ok(customerService.recalculateScore(id));

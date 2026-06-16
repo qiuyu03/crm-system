@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.crm.customer.mapper.CustomerMapper">
+
+    <!--
+        客户动态条件分页查询
+        - level 为空时不过滤等级
+        - keyword 为空时不做模糊搜索；非空时匹配 name 或 company
+        - 走联合索引 idx_level + idx_score 降序
+    -->
+    <select id="search" resultType="com.crm.customer.entity.Customer">
+        SELECT id, name, company, contact, email, level, score,
+               total_amount, order_count, credit_days, overdue_count,
+               remark, create_time, update_time
+        FROM t_customer
+        <where>
+            <if test="level != null and level != ''">
+                AND level = #{level}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%')
+                  OR company LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY score DESC, create_time DESC
+    </select>
+
+</mapper>
