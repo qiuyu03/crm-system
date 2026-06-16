@@ -1,0 +1,33 @@
+# Maven
+target/
+*.jar
+*.war
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# 敏感配置（包含数据库密码、API密钥，不提交）
+src/main/resources/application.yml
+src/main/resources/application-prod.yml
+
+# 前端依赖与构建产物
+crm-frontend/node_modules/
+crm-frontend/dist/
+
+# Claude Code 本地工具目录
+.claude/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 日志
+logs/
+*.log

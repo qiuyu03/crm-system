@@ -1,0 +1,17 @@
+// Vue 3 + Vite + Element Plus 前端骨架
+// 使用前先在 crm-frontend/ 目录执行：
+//   npm create vite@latest . -- --template vue
+//   npm install
+//   npm install element-plus axios @stomp/stompjs sockjs-client
+
+import { createApp } from 'vue'
+import ElementPlus from 'element-plus'
+import 'element-plus/dist/index.css'
+import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
+import App from './App.vue'
+import router from './router'
+
+createApp(App)
+  .use(ElementPlus, { locale: zhCn })
+  .use(router)
+  .mount('#app')
