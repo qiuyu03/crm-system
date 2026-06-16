@@ -53,3 +53,7 @@ management:
 
 feishu:
   webhook-url: https://open.feishu.cn/open-apis/bot/v2/hook/your-webhook-token
+
+jwt:
+  secret: your-256-bit-secret-key-here-change-in-production
+  expiration: 86400000   # 24小时，单位毫秒

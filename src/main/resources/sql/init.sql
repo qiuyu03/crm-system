@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS t_logistics;
 DROP TABLE IF EXISTS t_order_item;
 DROP TABLE IF EXISTS t_order;
 DROP TABLE IF EXISTS t_customer;
+DROP TABLE IF EXISTS t_user;
 
 -- =============================================
 -- 1. 客户表
@@ -122,6 +123,26 @@ CREATE TABLE t_alert (
     INDEX idx_status (status),
     INDEX idx_type_status (alert_type, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='预警记录表';
+
+
+-- =============================================
+-- 0. 用户表（登录鉴权）
+-- =============================================
+CREATE TABLE t_user (
+    id          BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    username    VARCHAR(32)  NOT NULL               COMMENT '用户名（唯一）',
+    password    VARCHAR(128) NOT NULL               COMMENT 'BCrypt 加密密码',
+    real_name   VARCHAR(32)                         COMMENT '真实姓名',
+    role        VARCHAR(16)  NOT NULL DEFAULT 'USER' COMMENT '角色: ADMIN/USER',
+    enabled     TINYINT      NOT NULL DEFAULT 1     COMMENT '是否启用',
+    create_time DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_username (username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+
+-- 初始管理员账号，密码明文: admin123
+INSERT INTO t_user (username, password, real_name, role)
+VALUES ('admin', '$2a$10$7QwkNbFoY5ZkZaFjUmR8COJ6YJ7SneLxJM1Z5l3LsHdw3P4xWVX5K', '管理员', 'ADMIN');
 
 
 -- =============================================
